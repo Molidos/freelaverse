@@ -292,6 +292,7 @@ export default function Home() {
             <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
               Encontre talentos incríveis e acelere seus projetos em um{" "}
               <span className="text-gradient">universo ilimitado</span>.
+              <span className="text-gradient font-bold text-5xl">BRANCH MAIN</span>.
             </h1>
             <p className="text-lg text-(--muted-foreground) max-w-xl">
               Conecte clientes e freelancers com tecnologia, curadoria e suporte 24/7. Experiência moderna,
