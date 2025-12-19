@@ -13,32 +13,64 @@ jobs:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      PROJECT_PATH: /home/jony/freelaverse/frontend
+      SSH_KEY:  ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # raiz do seu repo na VPS (ajuste se necessário)
+      PROJECT_ROOT: /home/jony/freelaverse
 
     steps:
       - name: Detect branch
         id: vars
+        shell: bash
         run: |
+          set -e
           BRANCH="${GITHUB_REF##*/}"
-          if [ "$BRANCH" = "develop" ]; then PROFILE="dev";
-          elif [ "$BRANCH" = "homolog" ]; then PROFILE="hml";
-          elif [ "$BRANCH" = "main" ]; then PROFILE="prod";
-          else echo "Branch inválida"; exit 1; fi
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          echo "profile=$PROFILE" >> $GITHUB_OUTPUT
 
-      - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ env.SSH_KEY }}
+          if [ "$BRANCH" = "develop" ]; then
+            PROFILE="dev"
+            ENVFILE=".env.dev"
+          elif [ "$BRANCH" = "homolog" ]; then
+            PROFILE="hml"
+            ENVFILE=".env.hml"
+          elif [ "$BRANCH" = "main" ]; then
+            PROFILE="prod"
+            ENVFILE=".env.prod"
+          else
+            echo "Branch inválida: $BRANCH"
+            exit 1
+          fi
 
-      - name: Deploy frontend
+          echo "branch=$BRANCH"  >> "$GITHUB_OUTPUT"
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "envfile=$ENVFILE" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy (git pull + docker compose)
+        shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" << 'EOF'
+          set -e
+
+          # cria arquivo de chave no runner
+          mkdir -p ~/.ssh
+          echo "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          BRANCH="${{ steps.vars.outputs.branch }}"
+          PROFILE="${{ steps.vars.outputs.profile }}"
+          ENVFILE="${{ steps.vars.outputs.envfile }}"
+
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" << EOF
             set -e
-            cd /home/jony/freelaverse/frontend
-            git pull origin ${{ steps.vars.outputs.branch }}
-            cd ../infra
-            docker compose --profile ${{ steps.vars.outputs.profile }} up --build -d
+
+            cd "${PROJECT_ROOT}"
+
+            # garante branch correta e atualiza
+            git fetch --all
+            git checkout "${BRANCH}"
+            git pull origin "${BRANCH}"
+
+            # sobe stack usando env do ambiente
+            cd "${PROJECT_ROOT}/infra"
+            docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" up -d --build
+
+            docker compose -f docker-compose.yaml --profile "${PROFILE}" ps
           EOF
