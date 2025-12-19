@@ -15,8 +15,11 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_KEY:  ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # raiz do seu repo na VPS (ajuste se necessário)
-      PROJECT_ROOT: /home/jony/freelaverse
+      # caminho do repo do FRONT na VPS
+      FRONT_REPO_PATH: /home/jony/freelaverse/frontend
+
+      # caminho do infra (compose/nginx/envs) na VPS
+      INFRA_PATH: /home/jony/freelaverse/infra
 
     steps:
       - name: Detect branch
@@ -44,12 +47,11 @@ jobs:
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
           echo "envfile=$ENVFILE" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy (git pull + docker compose)
+      - name: Deploy (git pull frontend + docker compose)
         shell: bash
         run: |
           set -e
 
-          # cria arquivo de chave no runner
           mkdir -p ~/.ssh
           echo "${SSH_KEY}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
@@ -61,15 +63,14 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" << EOF
             set -e
 
-            cd "${PROJECT_ROOT}"
-
-            # garante branch correta e atualiza
+            # Atualiza FRONTEND (repo separado)
+            cd "${FRONT_REPO_PATH}"
             git fetch --all
             git checkout "${BRANCH}"
             git pull origin "${BRANCH}"
 
-            # sobe stack usando env do ambiente
-            cd "${PROJECT_ROOT}/infra"
+            # Sobe o ambiente via compose (infra separado)
+            cd "${INFRA_PATH}"
             docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" up -d --build
 
             docker compose -f docker-compose.yaml --profile "${PROFILE}" ps
