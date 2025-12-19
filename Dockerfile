@@ -5,10 +5,10 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN pnpm install
 
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # =========================
 # RUNTIME
