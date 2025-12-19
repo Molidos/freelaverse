@@ -296,7 +296,7 @@ export default function Home() {
             </h1>
             <p className="text-lg text-(--muted-foreground) max-w-xl">
               Conecte clientes e freelancers com tecnologia, curadoria e suporte 24/7. Experiência moderna,
-              segura e inspirada na estética gamer que você já ama.
+              segura e inspirada na estética gamer que você já ama!
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <Link href="/cadastro" className="liquid-button">
