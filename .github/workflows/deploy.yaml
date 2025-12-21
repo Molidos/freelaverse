@@ -71,7 +71,7 @@ jobs:
 
             # Sobe o ambiente via compose (infra separado)
             cd "${INFRA_PATH}"
-            docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" up -d --build "web_${PROFILE}"
+            docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" up --no-deps -d --build "web_${PROFILE}"
 
             docker compose -f docker-compose.yaml --profile "${PROFILE}" ps "web_${PROFILE}"
           EOF
