@@ -24,10 +24,11 @@ jobs:
       # GHCR
       GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
       IMAGE_NAME: freelaverse-web
 
     steps:
-      - name: Detect branch -> profile/tag/envfile
+      - name: Detect branch → profile/tag/envfile
         id: vars
         shell: bash
         run: |
@@ -51,15 +52,20 @@ jobs:
             exit 1
           fi
 
-          echo "branch=$BRANCH"   >> "$GITHUB_OUTPUT"
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "envfile=$ENVFILE" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout frontend repo
+      - name: Checkout frontend
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
+      - name: Lowercase owner (GHCR exige)
+        id: owner
+        shell: bash
+        run: |
+          echo "lower=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login GHCR (push)
@@ -69,13 +75,13 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push image to GHCR (cached)
+      - name: Build & Push image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
+            ghcr.io/${{ steps.owner.outputs.lower }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -90,7 +96,7 @@ jobs:
 
           PROFILE="${{ steps.vars.outputs.profile }}"
           ENVFILE="${{ steps.vars.outputs.envfile }}"
-          OWNER="${{ github.repository_owner }}"
+          OWNER="${{ steps.owner.outputs.lower }}"
           IMAGE="ghcr.io/${OWNER}/${IMAGE_NAME}:${{ steps.vars.outputs.tag }}"
 
           ssh -i ~/.ssh/id_ed25519 \
@@ -100,14 +106,12 @@ jobs:
             -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" << EOF
               set -e
 
-              # Login GHCR (pull)
               echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
               cd "${INFRA_PATH}"
 
-              # Puxa a imagem nova e sobe (SEM BUILD)
-              docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" pull "web_${PROFILE}"
-              docker compose -f docker-compose.yaml --profile "${PROFILE}" --env-file "${ENVFILE}" up -d --no-deps "web_${PROFILE}"
+              docker compose --profile "${PROFILE}" --env-file "${ENVFILE}" pull "web_${PROFILE}"
+              docker compose --profile "${PROFILE}" --env-file "${ENVFILE}" up -d --no-deps "web_${PROFILE}"
 
-              docker compose -f docker-compose.yaml --profile "${PROFILE}" ps "web_${PROFILE}"
+              docker compose --profile "${PROFILE}" ps "web_${PROFILE}"
           EOF
