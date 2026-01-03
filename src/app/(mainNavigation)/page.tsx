@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import ThemeToggle from "../components/ThemeToggle";
+import ThemeToggle from "../../components/ThemeToggle";
 import {
   FiLogIn,
   FiUserPlus,
@@ -26,9 +26,9 @@ import {
   FaTwitter,
   FaLinkedin,
 } from "react-icons/fa";
-import Reveal from "../components/Reveal";
-import logoSquare from "../assets/img/logoQuadradoFundo.png";
-import logoSmall from "../assets/img/logores.png";
+import Reveal from "../../components/Reveal";
+import logoSquare from "../../assets/img/logoQuadradoFundo.png";
+import logoSmall from "../../assets/img/logores.png";
 
 const heroStats = [
   { value: "+4.5k", label: "Projetos publicados" },

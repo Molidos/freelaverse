@@ -150,18 +150,16 @@ main {
     linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(5, 6, 18, 0.7)),
     color-mix(in oklab, var(--background) 80%, transparent 20%);
   box-shadow: 0 50px 90px rgba(2, 4, 17, 0.55);
-  border: none;
 }
 
 .header-glass {
   width: 100%;
   background:
-    linear-gradient(135deg, rgba(3, 6, 23, 0.95), rgba(5, 0, 25, 0.85)),
+    linear-gradient(135deg, rgba(19, 21, 36, 0.95), rgba(13, 10, 26, 0.85)),
     color-mix(in oklab, #050816 80%, transparent 20%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(24px) saturate(1.15);
   -webkit-backdrop-filter: blur(24px) saturate(1.15);
-  box-shadow: 0 20px 40px rgba(2, 4, 17, 0.6);
 }
 
 .hero-shell {
@@ -443,4 +441,36 @@ main {
 }
 .animate-float-slow {
   animation: float 7s ease-in-out infinite;
+}
+
+/* Scrollbar suave para listas internas */
+.scroll-soft {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--brand) 60%, transparent) color-mix(in oklab, var(--background) 75%, transparent);
+}
+.scroll-soft::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-soft::-webkit-scrollbar-track {
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  border-radius: 999px;
+}
+.scroll-soft::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--brand) 70%, transparent);
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--background) 80%, transparent);
+}
+.scroll-soft::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--brand) 85%, transparent);
+}
+
+/* Ajuste para selects e options ficarem legíveis em temas escuros */
+select option {
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+html.dark select option {
+  background-color: #0f1430; /* Fundo sólido para o dropdown no dark mode */
+  color: #e6e6f0;
 }
