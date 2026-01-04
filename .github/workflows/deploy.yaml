@@ -114,8 +114,8 @@ jobs:
 
               cd "${INFRA_PATH}"
 
-              docker compose --profile "${PROFILE}" --env-file .env pull "web_${PROFILE}"
-              docker compose --profile "${PROFILE}" --env-file .env up -d --no-deps "web_${PROFILE}"
+              docker compose --profile "${PROFILE}" --env-file .env."${ENVFILE}" pull "web_${PROFILE}"
+              docker compose --profile "${PROFILE}" --env-file .env."${ENVFILE}" up -d --no-deps "web_${PROFILE}"
 
               docker compose --profile "${PROFILE}" ps "web_${PROFILE}"
           EOF
