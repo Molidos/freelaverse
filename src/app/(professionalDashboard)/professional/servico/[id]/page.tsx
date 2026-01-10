@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FiArrowLeft, FiMapPin, FiClock, FiTag, FiUser, FiPhone, FiMessageCircle } from "react-icons/fi";
+import { FiArrowLeft, FiMapPin, FiClock, FiUser, FiPhone, FiMessageCircle } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
-import api from "../../../../../lib/api";
+import api from "@/src/lib/api";
 
 export default function JobDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<any>(null);
-  const [client, setClient] = useState<any>(null);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const getCookie = (name: string) => {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -30,14 +30,6 @@ export default function JobDetailPage() {
         });
         const jobData = jobRes.data;
         setJob(jobData);
-
-        // 2. Busca dados do cliente (quem criou o serviço)
-        if (jobData.userId) {
-          const userRes = await api.get(`/Users/${jobData.userId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setClient(userRes.data);
-        }
       } catch (err) {
         console.error("Erro ao carregar detalhes:", err);
       } finally {
@@ -47,6 +39,27 @@ export default function JobDetailPage() {
 
     fetchData();
   }, [id]);
+
+  const handleUnlock = async () => {
+    const token = getCookie("authToken");
+    if (!token || !id) return;
+
+    try {
+      setLoading(true);
+      setUnlockError(null);
+      const res = await api.post(`/Services/${id}/unlock`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setJob(res.data);
+      alert("Serviço desbloqueado com sucesso.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || "Erro ao desbloquear serviço.";
+      setUnlockError(msg);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -67,8 +80,8 @@ export default function JobDetailPage() {
     );
   }
 
-  const whatsappUrl = client?.phone 
-    ? `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${client.userName}, vi seu pedido "${job.title}" no Freelaverse e gostaria de conversar sobre!`)}`
+  const whatsappUrl = job?.clientPhone
+    ? `https://wa.me/${job.clientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, vi seu pedido "${job.title}" no Freelaverse e gostaria de conversar sobre!`)}`
     : null;
 
   return (
@@ -111,6 +124,18 @@ export default function JobDetailPage() {
               <FaWhatsapp className="text-2xl" /> Entrar em Contato
             </a>
           )}
+          {!whatsappUrl && (
+            <button
+              onClick={handleUnlock}
+              disabled={loading}
+              className="liquid-button cursor-pointer bg-(--brand) border-(--brand)/40 hover:bg-(--brand)/80 gap-2 px-8 py-4 text-lg disabled:opacity-60"
+            >
+              Desbloquear serviço
+            </button>
+          )}
+          {unlockError && (
+            <p className="text-sm text-red-400 max-w-md">{unlockError}</p>
+          )}
         </div>
 
         {/* Descrição */}
@@ -128,24 +153,22 @@ export default function JobDetailPage() {
           <div className="surface p-6 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-(--brand)/20 border border-(--brand)/30 flex items-center justify-center text-2xl text-(--brand)">
-                {client?.profileImageUrl ? (
-                  <img src={client.profileImageUrl} alt={client.userName} className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  <FiUser />
-                )}
+                <FiUser />
               </div>
               <div>
                 <p className="text-xs text-(--muted-foreground) uppercase tracking-widest font-bold">Solicitado por</p>
-                <h4 className="text-xl font-bold">{client?.userName || "Carregando..."}</h4>
-                <p className="text-sm text-(--muted-foreground)">Membro desde {client ? new Date(client.createdAt).toLocaleDateString('pt-BR') : "..."}</p>
+                <h4 className="text-xl font-bold">Cliente</h4>
+                <p className="text-sm text-(--muted-foreground)">Contato liberado apenas para assinantes</p>
               </div>
             </div>
             
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2 text-(--brand) font-semibold">
-                <FiPhone /> {client?.phone || "Não informado"}
+                <FiPhone /> {job?.clientPhone || "Telefone não disponível"}
               </div>
-              <p className="text-xs text-(--muted-foreground)">Negocie detalhes diretamente pelo WhatsApp</p>
+              <p className="text-xs text-(--muted-foreground)">
+                {job?.clientEmail && (<span className="text-sm text-(--muted-foreground)">Ou pelo e-mail: {job.clientEmail}</span>)}
+              </p>
             </div>
           </div>
         </div>

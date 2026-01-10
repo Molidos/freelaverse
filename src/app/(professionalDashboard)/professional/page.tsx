@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiTarget, FiMapPin, FiClock, FiTag, FiBriefcase, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiTarget, FiMapPin, FiClock, FiBriefcase, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import Link from "next/link";
 import api from "../../../lib/api";
 
@@ -88,8 +88,10 @@ export default function ProfessionalDashboardPage() {
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--brand)/10 border border-(--brand)/20 text-(--brand) text-sm font-medium">
-            <FiBriefcase /> {totalItems} Jobs encontrados
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--brand)/10 border border-(--brand)/20 text-(--brand) text-sm font-medium">
+              <FiBriefcase /> {totalItems} Jobs encontrados
+            </div>
           </div>
         </div>
 
@@ -142,10 +144,13 @@ export default function ProfessionalDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="pt-2 flex flex-col gap-2">
                     <div className="liquid-button flex-1 text-sm py-2 justify-center">
                       Ver Detalhes
                     </div>
+                    <span className="text-[11px] text-(--muted-foreground) flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/10 self-start">
+                      {job.quantProfessionals ?? 0} profissionais
+                    </span>
                   </div>
                 </div>
               </Link>
