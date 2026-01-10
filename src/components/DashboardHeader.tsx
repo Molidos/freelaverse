@@ -12,6 +12,7 @@ export default function DashboardHeader({ role }: { role: "client" | "profession
   const router = useRouter();
   const [loadingSubscribe, setLoadingSubscribe] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   const getCookie = (name: string) => {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -59,6 +60,7 @@ export default function DashboardHeader({ role }: { role: "client" | "profession
           headers: { Authorization: `Bearer ${token}` },
         });
         setCredits(res.data?.credits ?? 0);
+        setHasSubscription(res.data?.subscription?.hasSubscription ?? false);
       } catch (err) {
         console.error("Erro ao buscar créditos", err);
       }
@@ -89,11 +91,15 @@ export default function DashboardHeader({ role }: { role: "client" | "profession
                 className="liquid-button cursor-pointer flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-60"
               >
                 <FiZap className="text-lg" />
-                {loadingSubscribe ? "Gerando link..." : "Assinar Plano"}
+                {loadingSubscribe
+                ? "Gerando link..."
+                : hasSubscription
+                  ? "Gerenciar plano"
+                  : "Assinar Plano"}
               </button>
             </>
           )}
-
+  
           <button className="p-2 rounded-full hover:bg-white/5 transition relative text-(--muted-foreground) hover:text-white">
             <FiBell className="text-xl" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-(--brand) rounded-full"></span>

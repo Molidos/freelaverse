@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiTarget, FiMapPin, FiClock, FiBriefcase, FiChevronLeft, FiChevronRight, FiZap } from "react-icons/fi";
+import { FiTarget, FiMapPin, FiClock, FiBriefcase, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import Link from "next/link";
 import api from "../../../lib/api";
 
@@ -9,7 +9,6 @@ export default function ProfessionalDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<any[]>([]);
   const [userData, setUserData] = useState<any>(null);
-  const [loadingSubscribe, setLoadingSubscribe] = useState(false);
   
   // Estados para Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -89,8 +88,10 @@ export default function ProfessionalDashboardPage() {
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--brand)/10 border border-(--brand)/20 text-(--brand) text-sm font-medium">
-            <FiBriefcase /> {totalItems} Jobs encontrados
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--brand)/10 border border-(--brand)/20 text-(--brand) text-sm font-medium">
+              <FiBriefcase /> {totalItems} Jobs encontrados
+            </div>
           </div>
         </div>
 

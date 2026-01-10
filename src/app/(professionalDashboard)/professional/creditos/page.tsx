@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiCreditCard, FiCheckCircle, FiZap, FiCopy } from "react-icons/fi";
 import { RiQrCodeLine } from "react-icons/ri";
+import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 import api from "@/src/lib/api";
 
 const PACKS = [
@@ -24,6 +25,9 @@ export default function ProfessionalCreditosPage() {
   const [qrText, setQrText] = useState<string | null>(null);
   const [qrLink, setQrLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentCredits, setPaymentCredits] = useState<number | null>(null);
+  const connectionRef = useRef<HubConnection | null>(null);
 
   const selectedPackData = PACKS.find((p) => p.id === selectedPack);
   const selectedPayment = PAYMENT_METHODS.find((m) => m.id === paymentMethod);
@@ -34,18 +38,60 @@ export default function ProfessionalCreditosPage() {
   };
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndConnect = async () => {
       const token = getCookie("authToken");
       if (!token) return;
       try {
         const res = await api.get("/Auth/me", { headers: { Authorization: `Bearer ${token}` } });
         setUser(res.data);
+        const email = res.data?.email;
+        if (email) {
+          await startSignalR(email);
+        }
       } catch (err) {
         console.error("Erro ao buscar usuário", err);
       }
     };
-    fetchUser();
+    fetchUserAndConnect();
+
+    return () => {
+      if (connectionRef.current) {
+        connectionRef.current.stop().catch(() => {});
+      }
+    };
   }, []);
+
+  const startSignalR = async (email: string) => {
+    try {
+      if (connectionRef.current) {
+        await connectionRef.current.stop().catch(() => {});
+      }
+
+      const apiBase = api.defaults.baseURL || "http://localhost:5002/api";
+      const hubBase = apiBase.replace(/\/api\/?$/, "");
+      const hubUrl = `${hubBase}/hubs/payments`;
+
+      const connection = new HubConnectionBuilder()
+        .withUrl(hubUrl)
+        .withAutomaticReconnect()
+        .build();
+
+      connection.on("PixPaymentUpdated", (payload: any) => {
+        if (!payload?.email || payload.email.toLowerCase() !== email.toLowerCase()) return;
+        if (payload.totalCredits !== undefined) {
+          setUser((prev: any) => prev ? { ...prev, credits: payload.totalCredits } : prev);
+        }
+        setPaymentStatus(payload.status ?? "paid");
+        setPaymentCredits(payload.creditsAdded ?? null);
+      });
+
+      await connection.start();
+      await connection.invoke("JoinUserGroup", email);
+      connectionRef.current = connection;
+    } catch (err) {
+      console.error("Erro ao conectar ao SignalR", err);
+    }
+  };
 
   const handleCopy = async (text: string) => {
     try {
@@ -71,6 +117,8 @@ export default function ProfessionalCreditosPage() {
     setError(null);
     setQrLink(null);
     setQrText(null);
+    setPaymentStatus(null);
+    setPaymentCredits(null);
 
     try {
       const res = await api.post(
@@ -213,6 +261,17 @@ export default function ProfessionalCreditosPage() {
             </div>
           )}
           {loadingPix && <p className="text-sm text-(--muted-foreground)">Gerando QR Code...</p>}
+          {paymentStatus && (
+            <div className="p-3 rounded-xl border border-white/10 bg-emerald-500/10 text-sm">
+              Status: <span className="font-semibold">{paymentStatus}</span>
+              {paymentCredits !== null && (
+                <> — Créditos adicionados: <span className="font-semibold">{paymentCredits}</span></>
+              )}
+              {user?.credits !== undefined && (
+                <> — Total de créditos: <span className="font-semibold">{user?.credits}</span></>
+              )}
+            </div>
+          )}
       </section>
       )}
     </main>
