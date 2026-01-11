@@ -126,10 +126,7 @@ export default function ProfessionalCreditosPage() {
         {
           name: user?.userName ?? "Cliente",
           email: user?.email ?? "email@exemplo.com",
-          product: selectedPackData.label,
-          quantity: 1,
-          unitAmount: selectedPackData.priceCents,
-          price: 100,
+          packId: selectedPackData.id,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
