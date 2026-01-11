@@ -145,12 +145,15 @@ export default function ProfessionalDashboardPage() {
                   </div>
 
                   <div className="pt-2 flex flex-col gap-2">
-                    <div className="liquid-button flex-1 text-sm py-2 justify-center">
-                      Ver Detalhes
+                    <div className="liquid-button flex-1 text-sm py-2 justify-between items-center px-4">
+                      <span>Ver Detalhes</span>
+                      
                     </div>
-                    <span className="text-[11px] text-(--muted-foreground) flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/10 self-start">
-                      {job.quantProfessionals ?? 0} profissionais
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-(--muted-foreground) flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg border border-white/10 self-start">
+                        {job.quantProfessionals ?? 0} profissionais
+                      </span>
+                    </div>
                   </div>
                 </div>
               </Link>

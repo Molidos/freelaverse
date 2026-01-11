@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FiArrowLeft, FiMapPin, FiClock, FiUser, FiPhone, FiMessageCircle } from "react-icons/fi";
+import { FiArrowLeft, FiMapPin, FiClock, FiUser, FiPhone, FiMessageCircle, FiShield } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import api from "@/src/lib/api";
 
@@ -12,6 +12,7 @@ export default function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<any>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [exclusiveLoading, setExclusiveLoading] = useState(false);
 
   const getCookie = (name: string) => {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -58,6 +59,27 @@ export default function JobDetailPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExclusiveUnlock = async () => {
+    const token = getCookie("authToken");
+    if (!token || !id) return;
+
+    try {
+      setExclusiveLoading(true);
+      setUnlockError(null);
+      const res = await api.post(`/Services/${id}/exclusive`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setJob(res.data);
+      alert("Exclusividade garantida. Contato liberado.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || "Erro ao garantir exclusividade.";
+      setUnlockError(msg);
+      console.error(err);
+    } finally {
+      setExclusiveLoading(false);
     }
   };
 
@@ -114,28 +136,42 @@ export default function JobDetailPage() {
             </div>
           </div>
           
-          {whatsappUrl && (
-            <a 
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="liquid-button bg-emerald-600 hover:bg-emerald-500 border-emerald-400/30 gap-2 px-8 py-4 text-lg"
-            >
-              <FaWhatsapp className="text-2xl" /> Entrar em Contato
-            </a>
-          )}
-          {!whatsappUrl && (
-            <button
-              onClick={handleUnlock}
-              disabled={loading}
-              className="liquid-button cursor-pointer bg-(--brand) border-(--brand)/40 hover:bg-(--brand)/80 gap-2 px-8 py-4 text-lg disabled:opacity-60"
-            >
-              Desbloquear serviço
-            </button>
-          )}
-          {unlockError && (
-            <p className="text-sm text-red-400 max-w-md">{unlockError}</p>
-          )}
+          <div className="flex flex-col items-end gap-3">
+            <div className="inline-flex flex-col items-end px-4 py-3 rounded-2xl bg-linear-to-r from-(--brand)/25 to-(--brand)/10 border border-(--brand)/30 shadow-[0_10px_30px_rgba(88,101,242,0.25)]">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-white/70 font-semibold">Preço do serviço</span>
+              <span className="text-3xl font-bold text-white leading-tight">R$ {job.value ?? 0}</span>
+            </div>
+            {job?.quantProfessionals === 0 && !whatsappUrl && (
+              <button
+                onClick={handleExclusiveUnlock}
+                disabled={exclusiveLoading}
+                className="liquid-button cursor-pointer bg-amber-500 hover:bg-amber-400 border-amber-300/50 gap-2 px-8 py-4 text-lg disabled:opacity-60"
+              >
+                <FiShield className="text-2xl" /> Garantir Exclusividade
+              </button>
+            )}
+            {whatsappUrl ? (
+              <a 
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="liquid-button bg-emerald-600 hover:bg-emerald-500 border-emerald-400/30 gap-2 px-8 py-4 text-lg"
+              >
+                <FaWhatsapp className="text-2xl" /> Entrar em Contato
+              </a>
+            ) : (
+              <button
+                onClick={handleUnlock}
+                disabled={loading}
+                className="liquid-button cursor-pointer bg-(--brand) border-(--brand)/40 hover:bg-(--brand)/80 gap-2 px-8 py-4 text-lg disabled:opacity-60"
+              >
+                Desbloquear serviço
+              </button>
+            )}
+            {unlockError && (
+              <p className="text-sm text-red-400 max-w-md text-right">{unlockError}</p>
+            )}
+          </div>
         </div>
 
         {/* Descrição */}
@@ -164,7 +200,7 @@ export default function JobDetailPage() {
             
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2 text-(--brand) font-semibold">
-                <FiPhone /> {job?.clientPhone || "Telefone não disponível"}
+                <FiPhone /> {job?.clientPhone || "Desbloqueie o serviço para ver o contato"}
               </div>
               <p className="text-xs text-(--muted-foreground)">
                 {job?.clientEmail && (<span className="text-sm text-(--muted-foreground)">Ou pelo e-mail: {job.clientEmail}</span>)}
@@ -176,4 +212,3 @@ export default function JobDetailPage() {
     </main>
   );
 }
-
