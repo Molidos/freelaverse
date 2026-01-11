@@ -129,7 +129,7 @@ export default function ProfessionalCreditosPage() {
           product: selectedPackData.label,
           quantity: 1,
           unitAmount: selectedPackData.priceCents,
-          price: selectedPackData.priceCents,
+          price: 100,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
