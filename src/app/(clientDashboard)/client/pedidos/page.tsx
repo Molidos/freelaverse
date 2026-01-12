@@ -115,14 +115,14 @@ export default function ClientPedidosPage() {
                   <FiUsers className="text-(--brand)" />
                   <span>{service.quantProfessionals} profissionais desbloquearam o pedido</span>
                 </div>
-                <div className="flex w-full items-center justify-center pt-2">
+                {/* <div className="flex w-full items-center justify-center pt-2">
                   <button
                     onClick={() => setCancelId(service.id)}
                     className=" w-full flex justify-center cursor-pointer items-center gap-2 px-3 py-2 rounded-md bg-red-500 text-white hover:bg-red-500/50 transition"
                   >
                     <FiTrash2 /> Cancelar pedido
                   </button>
-                </div>
+                </div> */}
               </div>
             </div>
           ))}
