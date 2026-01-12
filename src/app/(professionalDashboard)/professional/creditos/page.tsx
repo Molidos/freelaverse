@@ -28,6 +28,8 @@ export default function ProfessionalCreditosPage() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentCredits, setPaymentCredits] = useState<number | null>(null);
   const connectionRef = useRef<HubConnection | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const modalTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectedPackData = PACKS.find((p) => p.id === selectedPack);
   const selectedPayment = PAYMENT_METHODS.find((m) => m.id === paymentMethod);
@@ -37,6 +39,23 @@ export default function ProfessionalCreditosPage() {
     return match ? decodeURIComponent(match[2]) : null;
   };
 
+  const emitCreditsUpdated = (credits: number) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("freelaverse:credits-updated", { detail: { credits } }));
+    }
+  };
+
+  const openPaymentModal = () => {
+    setShowPaymentModal(true);
+    if (modalTimerRef.current) {
+      clearTimeout(modalTimerRef.current);
+    }
+    modalTimerRef.current = setTimeout(() => {
+      setShowPaymentModal(false);
+      modalTimerRef.current = null;
+    }, 3500);
+  };
+
   useEffect(() => {
     const fetchUserAndConnect = async () => {
       const token = getCookie("authToken");
@@ -44,6 +63,9 @@ export default function ProfessionalCreditosPage() {
       try {
         const res = await api.get("/Auth/me", { headers: { Authorization: `Bearer ${token}` } });
         setUser(res.data);
+        if (typeof res.data?.credits === "number") {
+          emitCreditsUpdated(res.data.credits);
+        }
         const email = res.data?.email;
         if (email) {
           await startSignalR(email);
@@ -57,6 +79,9 @@ export default function ProfessionalCreditosPage() {
     return () => {
       if (connectionRef.current) {
         connectionRef.current.stop().catch(() => {});
+      }
+      if (modalTimerRef.current) {
+        clearTimeout(modalTimerRef.current);
       }
     };
   }, []);
@@ -79,10 +104,15 @@ export default function ProfessionalCreditosPage() {
       connection.on("PixPaymentUpdated", (payload: any) => {
         if (!payload?.email || payload.email.toLowerCase() !== email.toLowerCase()) return;
         if (payload.totalCredits !== undefined) {
-          setUser((prev: any) => prev ? { ...prev, credits: payload.totalCredits } : prev);
+          setUser((prev: any) => {
+            const updated = prev ? { ...prev, credits: payload.totalCredits } : prev;
+            return updated;
+          });
+          emitCreditsUpdated(payload.totalCredits);
         }
         setPaymentStatus(payload.status ?? "paid");
         setPaymentCredits(payload.creditsAdded ?? null);
+        openPaymentModal();
       });
 
       await connection.start();
@@ -145,6 +175,7 @@ export default function ProfessionalCreditosPage() {
   };
 
   return (
+    <>
     <main className="max-w-5xl mx-auto px-6 py-10 space-y-8">
       <header className="surface p-6 rounded-2xl border border-white/10 shadow-xl flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -272,5 +303,30 @@ export default function ProfessionalCreditosPage() {
       </section>
       )}
     </main>
+
+    {showPaymentModal && (
+      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center pointer-events-none">
+        <div className="mb-6 md:mb-0 md:mr-6 max-w-sm w-full pointer-events-auto surface border border-emerald-400/40 shadow-2xl rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-emerald-500/20 p-2 text-emerald-300">
+              <FiCheckCircle className="text-lg" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold text-white">Pagamento confirmado</p>
+              <p className="text-sm text-(--muted-foreground)">
+                Status: <span className="text-white font-semibold">{paymentStatus ?? "paid"}</span>
+                {paymentCredits !== null && (
+                  <> — Créditos adicionados: <span className="text-white font-semibold">{paymentCredits}</span></>
+                )}
+                {user?.credits !== undefined && (
+                  <> — Total de créditos: <span className="text-white font-semibold">{user?.credits}</span></>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
