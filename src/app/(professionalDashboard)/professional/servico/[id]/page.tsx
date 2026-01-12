@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FiArrowLeft, FiMapPin, FiClock, FiUser, FiPhone, FiMessageCircle, FiShield } from "react-icons/fi";
+import { FiArrowLeft, FiMapPin, FiClock, FiUser, FiPhone, FiMessageCircle, FiShield, FiUsers } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import api from "@/src/lib/api";
 
@@ -181,6 +181,16 @@ export default function JobDetailPage() {
           </h3>
           <p className="text-(--muted-foreground) leading-relaxed whitespace-pre-wrap">
             {job.description}
+          </p>
+        </div>
+        
+        {/* Quantidade de profissionais que desbloquearam o serviço */}
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <FiUsers className="text-(--brand)" /> Quantidade de profissionais que desbloquearam o serviço
+          </h3>
+          <p className="text-(--muted-foreground) leading-relaxed whitespace-pre-wrap">
+            {job.quantProfessionals}
           </p>
         </div>
 
