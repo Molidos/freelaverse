@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiList, FiTag, FiAlertCircle, FiMapPin, FiCalendar, FiSearch } from "react-icons/fi";
+import { FiList, FiTag, FiAlertCircle, FiMapPin, FiCalendar, FiSearch, FiTrash2, FiUsers } from "react-icons/fi";
+import { ImSpinner2 } from "react-icons/im";
 import api from "@/src/lib/api";
 
 export default function ClientPedidosPage() {
   const [fetching, setFetching] = useState(true);
   const [clientServices, setClientServices] = useState<any[]>([]);
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [loadingCancel, setLoadingCancel] = useState(false);
+  const [cancelSuccess, setCancelSuccess] = useState(false);
 
   const getCookie = (name: string) => {
     const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
@@ -32,6 +36,30 @@ export default function ClientPedidosPage() {
   useEffect(() => {
     fetchServices();
   }, []);
+
+  const handleCancel = async () => {
+    if (!cancelId) return;
+    const token = getCookie("authToken");
+    if (!token) return;
+    setLoadingCancel(true);
+    setCancelSuccess(false);
+    try {
+      await api.delete(`/Services/${cancelId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setClientServices((prev) => prev.filter((s) => s.id !== cancelId));
+      setCancelSuccess(true);
+      setTimeout(() => {
+        setCancelId(null);
+        setCancelSuccess(false);
+      }, 1500);
+    } catch (err) {
+      console.error("Erro ao cancelar pedido", err);
+      alert("Não foi possível cancelar o pedido.");
+    } finally {
+      setLoadingCancel(false);
+    }
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -83,6 +111,18 @@ export default function ClientPedidosPage() {
                   <FiAlertCircle className={service.urgency === "Alta" || service.urgency === "Imediata" ? "text-red-400" : "text-emerald-400"} />
                   <span>Urgência {service.urgency}</span>
                 </div>
+                <div className="flex items-center gap-2 text-xs text-(--muted-foreground)">
+                  <FiUsers className="text-(--brand)" />
+                  <span>{service.quantProfessionals} profissionais desbloquearam o pedido</span>
+                </div>
+                <div className="flex w-full items-center justify-center pt-2">
+                  <button
+                    onClick={() => setCancelId(service.id)}
+                    className=" w-full flex justify-center cursor-pointer items-center gap-2 px-3 py-2 rounded-md bg-red-500 text-white hover:bg-red-500/50 transition"
+                  >
+                    <FiTrash2 /> Cancelar pedido
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -97,6 +137,39 @@ export default function ClientPedidosPage() {
             <p className="text-sm text-(--muted-foreground)">
               Você ainda não publicou nenhum pedido de serviço. 
             </p>
+          </div>
+        </div>
+      )}
+
+      {cancelId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="surface border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Confirmar cancelamento</h2>
+            <p className="text-(--muted-foreground)">
+              Tem certeza de que deseja cancelar este pedido? Essa ação não pode ser desfeita.
+            </p>
+            {cancelSuccess ? (
+              <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+                Pedido cancelado com sucesso.
+              </div>
+            ) : null}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setCancelId(null)}
+                className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition"
+                disabled={loadingCancel}
+              >
+                Voltar
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={loadingCancel}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-60 inline-flex items-center gap-2"
+              >
+                {loadingCancel && <ImSpinner2 className="animate-spin" />}
+                {loadingCancel ? "Cancelando..." : "Cancelar pedido"}
+              </button>
+            </div>
           </div>
         </div>
       )}
