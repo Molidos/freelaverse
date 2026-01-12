@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FiCreditCard, FiCheckCircle, FiZap, FiCopy } from "react-icons/fi";
+import { FiCreditCard, FiCheckCircle, FiZap, FiCopy, FiCheck } from "react-icons/fi";
 import { RiQrCodeLine } from "react-icons/ri";
 import { HubConnection, HubConnectionBuilder } from "@microsoft/signalr";
 import api from "@/src/lib/api";
@@ -30,6 +30,8 @@ export default function ProfessionalCreditosPage() {
   const connectionRef = useRef<HubConnection | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const modalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const modalIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [modalProgress, setModalProgress] = useState(100);
 
   const selectedPackData = PACKS.find((p) => p.id === selectedPack);
   const selectedPayment = PAYMENT_METHODS.find((m) => m.id === paymentMethod);
@@ -47,11 +49,26 @@ export default function ProfessionalCreditosPage() {
 
   const openPaymentModal = () => {
     setShowPaymentModal(true);
+    setModalProgress(100);
     if (modalTimerRef.current) {
       clearTimeout(modalTimerRef.current);
     }
+    if (modalIntervalRef.current) {
+      clearInterval(modalIntervalRef.current);
+    }
+    modalIntervalRef.current = setInterval(() => {
+      setModalProgress((prev) => {
+        const next = prev - 100 / 35; // ~3.5s
+        return next <= 0 ? 0 : next;
+      });
+    }, 100);
     modalTimerRef.current = setTimeout(() => {
       setShowPaymentModal(false);
+      setModalProgress(0);
+      if (modalIntervalRef.current) {
+        clearInterval(modalIntervalRef.current);
+        modalIntervalRef.current = null;
+      }
       modalTimerRef.current = null;
     }, 3500);
   };
@@ -82,6 +99,9 @@ export default function ProfessionalCreditosPage() {
       }
       if (modalTimerRef.current) {
         clearTimeout(modalTimerRef.current);
+      }
+      if (modalIntervalRef.current) {
+        clearInterval(modalIntervalRef.current);
       }
     };
   }, []);
@@ -269,8 +289,16 @@ export default function ProfessionalCreditosPage() {
             <RiQrCodeLine className="text-xl text-emerald-400" /> Pague com Pix
           </h2>
           {qrLink && (
-            <div className="bg-white p-3 rounded-xl inline-block">
-              <img src={qrLink} alt="QR Code Pix" className="w-48 h-48 object-contain" />
+            <div className="flex items-center gap-4">
+              <div className="bg-white p-3 rounded-xl inline-block">
+                <img src={qrLink} alt="QR Code Pix" className="w-48 h-48 object-contain" />
+              </div>
+              {paymentStatus === null && (
+                <div className="flex items-center gap-2 text-(--muted-foreground)">
+                  <div className="h-8 w-8 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
+                  <span className="text-sm">Aguardando pagamento via Pix...</span>
+                </div>
+              )}
             </div>
           )}
           {qrText && (
@@ -306,10 +334,16 @@ export default function ProfessionalCreditosPage() {
 
     {showPaymentModal && (
       <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center pointer-events-none">
-        <div className="mb-6 md:mb-0 md:mr-6 max-w-sm w-full pointer-events-auto surface border border-emerald-400/40 shadow-2xl rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4">
+        <div className="relative mb-6 md:mb-0 md:mr-6 max-w-sm w-full pointer-events-auto bg-gray-900 border border-emerald-400/40 shadow-2xl rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-4">
+          <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500/20 rounded-t-2xl overflow-hidden">
+            <div
+              className="h-full bg-emerald-400 transition-[width] duration-100"
+              style={{ width: `${modalProgress}%` }}
+            />
+          </div>
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-emerald-500/20 p-2 text-emerald-300">
-              <FiCheckCircle className="text-lg" />
+            <div className="mt-0.5 h-10 w-10 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+              <FiCheck className="text-lg" />
             </div>
             <div className="space-y-1">
               <p className="font-semibold text-white">Pagamento confirmado</p>
