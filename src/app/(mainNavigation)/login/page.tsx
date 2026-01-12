@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiCheckCircle } from "react-icons/fi";
 import { FaGoogle } from "react-icons/fa";
-import api from "../../lib/api";
+import api from "@/src/lib/api";
+import MainNavHeader from "@/src/components/MainNavHeader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,7 +67,9 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex justify-center items-center px-6">
+    <>
+    <MainNavHeader withoutNavbar={true}/>
+    <main className="min-h-screen flex justify-center items-center px-6 pt-20">
       <div className="max-w-5xl mx-auto section-block grid md:grid-cols-2 gap-10 items-center">
         <div className="space-y-4">
           <p className="pill">Login</p>
@@ -180,6 +183,7 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+    </>
   );
 }
 

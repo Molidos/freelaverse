@@ -16,7 +16,8 @@ import {
   FiPhone,
   FiUser,
 } from "react-icons/fi";
-import api from "../../lib/api";
+import api from "@/src/lib/api";
+import MainNavHeader from "@/src/components/MainNavHeader";
 
 type UserType = 1 | 2; // 1 = cliente, 2 = profissional
 
@@ -187,7 +188,9 @@ export default function CadastroUsuarioPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-6">
+    <>
+    <MainNavHeader withoutNavbar={true}/>
+    <main className="min-h-screen flex items-center justify-center px-4 py-6 pt-20">
       <div className="w-full max-w-4xl space-y-6">
         <div className="text-center mb-3 space-y-2">
           <p className="pill mx-auto">Siga as etapas do cadastro abaixo</p>
@@ -730,5 +733,6 @@ export default function CadastroUsuarioPage() {
         )}
       </div>
     </main>
+    </>
   );
 }
