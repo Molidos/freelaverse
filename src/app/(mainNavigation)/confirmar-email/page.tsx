@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FiAlertTriangle, FiCheckCircle, FiMail } from "react-icons/fi";
 import api from "@/src/lib/api";
 import MainNavHeader from "@/src/components/MainNavHeader";
 
-export default function ConfirmarEmailPage() {
+function ConfirmarEmailContent() {
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email") ?? "";
 
@@ -190,5 +190,19 @@ export default function ConfirmarEmailPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function ConfirmarEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center px-4 py-6 pt-20">
+          <p className="text-(--muted-foreground)">Carregando...</p>
+        </main>
+      }
+    >
+      <ConfirmarEmailContent />
+    </Suspense>
   );
 }
