@@ -15,9 +15,10 @@ function ConfirmarEmailContent() {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState(
-    "Digite o código de 6 dígitos que enviamos para seu email."
+    "Digite o código de 6 dígitos que enviamos para seu email. Ele é válido por 1 minuto."
   );
   const [loading, setLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
   const codeDigits = useMemo(
     () => code.padEnd(6, " ").slice(0, 6).split(""),
     [code]
@@ -40,6 +41,19 @@ function ConfirmarEmailContent() {
     if (emailParam) setEmail(emailParam);
   }, [emailParam]);
 
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft]);
+
+  const resetCountdown = () => setSecondsLeft(60);
+
+  const formatSeconds = (value: number) =>
+    new Date(value * 1000).toISOString().substring(14, 19);
+
   const handleConfirm = async () => {
     setStatus("idle");
     setMessage("Validando código...");
@@ -60,6 +74,32 @@ function ConfirmarEmailContent() {
       const msg =
         err?.response?.data?.message ||
         "Não foi possível confirmar seu email. Tente novamente.";
+      setStatus("error");
+      setMessage(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      setStatus("error");
+      setMessage("Informe o email para reenviar o código.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setStatus("idle");
+      setMessage("Enviando novo código...");
+      const res = await api.post("/Auth/resend-email-confirmation", { email });
+      resetCountdown();
+      setCode("");
+      setMessage(res?.data?.message ?? "Novo código enviado. Verifique seu email.");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        "Não foi possível reenviar o código. Tente novamente.";
       setStatus("error");
       setMessage(msg);
     } finally {
@@ -165,6 +205,16 @@ function ConfirmarEmailContent() {
                     disabled={loading}
                   >
                     {loading ? "Validando..." : "Confirmar código"}
+                  </button>
+                  <button
+                    type="button"
+                    className="liquid-button liquid-button--ghost px-4"
+                    onClick={handleResend}
+                    disabled={loading || secondsLeft > 0}
+                  >
+                    {secondsLeft > 0
+                      ? `Reenviar em ${formatSeconds(secondsLeft)}`
+                      : "Reenviar código"}
                   </button>
                   <Link
                     href="/cadastro"
