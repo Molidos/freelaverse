@@ -59,8 +59,16 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (err: any) {
+      const status = err?.response?.status;
       const message = err?.response?.data?.message || "Não foi possível fazer login.";
-      setError(message);
+      if (status === 403 && message.toLowerCase().includes("confirme seu email")) {
+        setError("Confirme seu email para continuar. Vamos te redirecionar para inserir o código.");
+        setTimeout(() => {
+          router.push(`/confirmar-email?email=${encodeURIComponent(email)}`);
+        }, 500);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
