@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -45,6 +46,7 @@ type ProfessionalArea = {
 const steps = ["Conta", "Contato e Endereço", "Preferências"];
 
 export default function CadastroUsuarioPage() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,6 +230,68 @@ export default function CadastroUsuarioPage() {
     }
   };
 
+  const loginAfterConfirm = async () => {
+    const email = confirmationEmail || data.email;
+    const password = data.password;
+    if (!email || !password) {
+      setConfirmFeedback("Email confirmado! Agora você pode fazer login.");
+      setConfirmStatus("success");
+      return;
+    }
+
+    try {
+      const { data: loginData } = await api.post("/Auth/login", {
+        email,
+        password,
+      });
+
+      const token =
+        loginData?.token ?? loginData?.accessToken ?? loginData?.authToken;
+      const userTypeRaw =
+        loginData?.userType ??
+        loginData?.user?.userType ??
+        loginData?.user?.type ??
+        loginData?.type;
+      const userType =
+        typeof userTypeRaw === "number" ? String(userTypeRaw) : userTypeRaw;
+      const userId = loginData?.user?.id ?? loginData?.userId ?? loginData?.id;
+
+      if (token) {
+        document.cookie = `authToken=${encodeURIComponent(
+          token
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userType) {
+        document.cookie = `userType=${encodeURIComponent(
+          userType
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userId) {
+        document.cookie = `userId=${encodeURIComponent(
+          userId
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+
+      setConfirmFeedback(
+        "Email confirmado e login realizado! Redirecionando para o painel..."
+      );
+      setConfirmStatus("success");
+
+      if (userType === "1") {
+        router.push("/client");
+      } else if (userType === "2") {
+        router.push("/professional");
+      } else {
+        router.push("/");
+      }
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message || "Email confirmado, mas login falhou.";
+      setConfirmFeedback(msg);
+      setConfirmStatus("error");
+    }
+  };
+
   const handleResendCode = async () => {
     if (!confirmationEmail) {
       setConfirmStatus("error");
@@ -385,6 +449,7 @@ export default function CadastroUsuarioPage() {
                             "Email confirmado! Agora você pode fazer login."
                         );
                         setConfirmStatus("success");
+                        await loginAfterConfirm();
                       } catch (err: any) {
                         const msg =
                           err?.response?.data?.message ||

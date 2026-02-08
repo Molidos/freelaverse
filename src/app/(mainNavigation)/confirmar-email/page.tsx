@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FiAlertTriangle, FiCheckCircle, FiMail } from "react-icons/fi";
 import api from "@/src/lib/api";
 import MainNavHeader from "@/src/components/MainNavHeader";
 
 function ConfirmarEmailContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email") ?? "";
 
   const [email, setEmail] = useState(emailParam);
+  const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState(
@@ -55,6 +57,45 @@ function ConfirmarEmailContent() {
   const formatSeconds = (value: number) =>
     new Date(value * 1000).toISOString().substring(14, 19);
 
+  const doLogin = async () => {
+    if (!password || !email) return;
+    try {
+      const { data } = await api.post("/Auth/login", { email, password });
+      const token = data?.token ?? data?.accessToken ?? data?.authToken;
+      const userTypeRaw =
+        data?.userType ?? data?.user?.userType ?? data?.user?.type ?? data?.type;
+      const userType =
+        typeof userTypeRaw === "number" ? String(userTypeRaw) : userTypeRaw;
+      const userId = data?.user?.id ?? data?.userId ?? data?.id;
+
+      if (token) {
+        document.cookie = `authToken=${encodeURIComponent(
+          token
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userType) {
+        document.cookie = `userType=${encodeURIComponent(
+          userType
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userId) {
+        document.cookie = `userId=${encodeURIComponent(
+          userId
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+
+      if (userType === "1") {
+        router.push("/client");
+      } else if (userType === "2") {
+        router.push("/professional");
+      } else {
+        router.push("/");
+      }
+    } catch {
+      // se falhar login, mantém confirmação
+    }
+  };
+
   const handleConfirm = async () => {
     setStatus("idle");
     setMessage("Validando código...");
@@ -71,6 +112,7 @@ function ConfirmarEmailContent() {
         res?.data?.message ||
           "Email confirmado com sucesso. Agora você pode fazer login."
       );
+      await doLogin();
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
@@ -161,6 +203,22 @@ function ConfirmarEmailContent() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="voce@freelaverse.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-(--muted-foreground)">
+                    Senha (para login automático)
+                  </label>
+                  <div className="glass-liquid">
+                    <div className="glass-liquid-inner flex items-center gap-2">
+                      <input
+                        type="password"
+                        className="w-full bg-transparent border-none outline-none"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Digite sua senha"
                       />
                     </div>
                   </div>
