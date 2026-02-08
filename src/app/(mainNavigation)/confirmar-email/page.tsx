@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FiAlertTriangle, FiCheckCircle, FiMail } from "react-icons/fi";
 import api from "@/src/lib/api";
@@ -19,6 +19,7 @@ function ConfirmarEmailContent() {
   );
   const [loading, setLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(60);
+  const autoSentRef = useRef(false);
   const codeDigits = useMemo(
     () => code.padEnd(6, " ").slice(0, 6).split(""),
     [code]
@@ -81,7 +82,7 @@ function ConfirmarEmailContent() {
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = async (auto = false) => {
     if (!email) {
       setStatus("error");
       setMessage("Informe o email para reenviar o código.");
@@ -91,7 +92,7 @@ function ConfirmarEmailContent() {
     try {
       setLoading(true);
       setStatus("idle");
-      setMessage("Enviando novo código...");
+      setMessage(auto ? "Enviando código de confirmação..." : "Enviando novo código...");
       const res = await api.post("/Auth/resend-email-confirmation", { email });
       resetCountdown();
       setCode("");
@@ -102,10 +103,18 @@ function ConfirmarEmailContent() {
         "Não foi possível reenviar o código. Tente novamente.";
       setStatus("error");
       setMessage(msg);
+      setSecondsLeft(0);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    if (!email) return;
+    autoSentRef.current = true;
+    handleResend(true);
+  }, [email]);
 
   return (
     <>
@@ -209,11 +218,13 @@ function ConfirmarEmailContent() {
                   <button
                     type="button"
                     className="liquid-button liquid-button--ghost px-4"
-                    onClick={handleResend}
+                    onClick={() => handleResend(false)}
                     disabled={loading || secondsLeft > 0}
                   >
                     {secondsLeft > 0
                       ? `Reenviar em ${formatSeconds(secondsLeft)}`
+                      : loading
+                      ? "Enviando..."
                       : "Reenviar código"}
                   </button>
                   <Link

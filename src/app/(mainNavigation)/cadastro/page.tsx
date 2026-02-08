@@ -53,6 +53,8 @@ export default function CadastroUsuarioPage() {
   const [confirmationCode, setConfirmationCode] = useState("");
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
   const [confirmFeedback, setConfirmFeedback] = useState<string | null>(null);
   const [areaInput, setAreaInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -91,6 +93,19 @@ export default function CadastroUsuarioPage() {
     const digits = text.replace(/\D/g, "").slice(0, 6);
     setConfirmationCode(digits);
   };
+
+  useEffect(() => {
+    if (!completed || secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [completed, secondsLeft]);
+
+  const resetCountdown = () => setSecondsLeft(60);
+
+  const formatSeconds = (value: number) =>
+    new Date(value * 1000).toISOString().substring(14, 19);
 
   const isProfessional = useMemo(() => data.userType === 2, [data.userType]);
 
@@ -200,14 +215,45 @@ export default function CadastroUsuarioPage() {
       setCompleted(true);
       setConfirmStatus("idle");
       setConfirmFeedback(
-        "Enviamos um código de 6 dígitos para seu email. Confirme para finalizar o cadastro."
+        "Enviamos um código de 6 dígitos para seu email. Ele é válido por 1 minuto. Confirme para finalizar o cadastro."
       );
+      setConfirmationCode("");
+      resetCountdown();
     } catch (err: any) {
       const message =
         err?.response?.data?.message || "Não foi possível concluir o cadastro.";
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!confirmationEmail) {
+      setConfirmStatus("error");
+      setConfirmFeedback("Informe o email para reenviar o código.");
+      return;
+    }
+    try {
+      setResending(true);
+      setConfirmStatus("idle");
+      setConfirmFeedback("Enviando novo código...");
+      const res = await api.post("/Auth/resend-email-confirmation", {
+        email: confirmationEmail,
+      });
+      setConfirmationCode("");
+      resetCountdown();
+      setConfirmFeedback(
+        res?.data?.message ?? "Novo código enviado. Verifique seu email."
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        "Não foi possível reenviar o código. Tente novamente.";
+      setConfirmStatus("error");
+      setConfirmFeedback(msg);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -314,7 +360,7 @@ export default function CadastroUsuarioPage() {
                     {confirmFeedback}
                   </div>
                 )}
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap items-center">
                   <button
                     type="button"
                     className="liquid-button px-4"
@@ -352,6 +398,18 @@ export default function CadastroUsuarioPage() {
                     disabled={confirming}
                   >
                     {confirming ? "Confirmando..." : "Confirmar código"}
+                  </button>
+                  <button
+                    type="button"
+                    className="liquid-button liquid-button--ghost px-4"
+                    onClick={handleResendCode}
+                    disabled={resending || secondsLeft > 0}
+                  >
+                    {secondsLeft > 0
+                      ? `Reenviar em ${formatSeconds(secondsLeft)}`
+                      : resending
+                      ? "Enviando..."
+                      : "Reenviar código"}
                   </button>
                   <Link href="/login" className="liquid-button liquid-button--ghost">
                     Ir para login
