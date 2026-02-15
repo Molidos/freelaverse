@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiCheckCircle } from "react-icons/fi";
 import { FaGoogle } from "react-icons/fa";
-import api from "../../lib/api";
+import api from "../../../lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
