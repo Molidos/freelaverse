@@ -75,9 +75,7 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-    <MainNavHeader withoutNavbar={true}/>
-    <main className="min-h-screen flex justify-center items-center px-6 pt-20">
+    <main className="min-h-screen flex justify-center items-center px-6">
       <div className="max-w-5xl mx-auto section-block grid md:grid-cols-2 gap-10 items-center">
         <div className="space-y-4">
           <p className="pill">Login</p>
@@ -191,7 +189,6 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
-    </>
   );
 }
 
