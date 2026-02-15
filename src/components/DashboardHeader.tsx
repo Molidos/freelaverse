@@ -68,6 +68,19 @@ export default function DashboardHeader({ role }: { role: "client" | "profession
     fetchCredits();
   }, [role]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ credits: number }>).detail;
+      if (detail && typeof detail.credits === "number") {
+        setCredits(detail.credits);
+      }
+    };
+    window.addEventListener("freelaverse:credits-updated", handler as EventListener);
+    return () => {
+      window.removeEventListener("freelaverse:credits-updated", handler as EventListener);
+    };
+  }, []);
+
   return (
     <header className="header-glass sticky top-0 z-50 px-6 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">

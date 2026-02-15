@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FiArrowLeft,
   FiArrowRight,
@@ -16,7 +17,8 @@ import {
   FiPhone,
   FiUser,
 } from "react-icons/fi";
-import api from "../../lib/api";
+import api from "@/src/lib/api";
+import MainNavHeader from "@/src/components/MainNavHeader";
 
 type UserType = 1 | 2; // 1 = cliente, 2 = profissional
 
@@ -44,11 +46,18 @@ type ProfessionalArea = {
 const steps = ["Conta", "Contato e Endereço", "Preferências"];
 
 export default function CadastroUsuarioPage() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(60);
+  const [confirmFeedback, setConfirmFeedback] = useState<string | null>(null);
   const [areaInput, setAreaInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -71,6 +80,34 @@ export default function CadastroUsuarioPage() {
   const [areas, setAreas] = useState<ProfessionalArea[]>([]);
   const [loadingAreas, setLoadingAreas] = useState(false);
   const [areasError, setAreasError] = useState<string | null>(null);
+  const [confirmStatus, setConfirmStatus] = useState<"idle" | "success" | "error">("idle");
+  const codeDigits = confirmationCode.padEnd(6, " ").slice(0, 6).split("");
+
+  const updateDigit = (idx: number, value: string) => {
+    const sanitized = value.replace(/\D/g, "").slice(0, 1);
+    const chars = confirmationCode.split("");
+    chars[idx] = sanitized;
+    const next = chars.join("");
+    setConfirmationCode(next);
+  };
+
+  const handlePasteCode = (text: string) => {
+    const digits = text.replace(/\D/g, "").slice(0, 6);
+    setConfirmationCode(digits);
+  };
+
+  useEffect(() => {
+    if (!completed || secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [completed, secondsLeft]);
+
+  const resetCountdown = () => setSecondsLeft(60);
+
+  const formatSeconds = (value: number) =>
+    new Date(value * 1000).toISOString().substring(14, 19);
 
   const isProfessional = useMemo(() => data.userType === 2, [data.userType]);
 
@@ -175,8 +212,15 @@ export default function CadastroUsuarioPage() {
         userProfessionalArea: isProfessional ? data.userProfessionalArea : [],
       };
       await api.post("/Auth/register", payload);
-      setSuccess("Cadastro realizado com sucesso! Você já pode fazer login.");
+      setSuccess(null);
+      setConfirmationEmail(data.email);
       setCompleted(true);
+      setConfirmStatus("idle");
+      setConfirmFeedback(
+        "Enviamos um código de 6 dígitos para seu email. Ele é válido por 1 minuto. Confirme para finalizar o cadastro."
+      );
+      setConfirmationCode("");
+      resetCountdown();
     } catch (err: any) {
       const message =
         err?.response?.data?.message || "Não foi possível concluir o cadastro.";
@@ -186,8 +230,101 @@ export default function CadastroUsuarioPage() {
     }
   };
 
+  const loginAfterConfirm = async () => {
+    const email = confirmationEmail || data.email;
+    const password = data.password;
+    if (!email || !password) {
+      setConfirmFeedback("Email confirmado! Agora você pode fazer login.");
+      setConfirmStatus("success");
+      return;
+    }
+
+    try {
+      const { data: loginData } = await api.post("/Auth/login", {
+        email,
+        password,
+      });
+
+      const token =
+        loginData?.token ?? loginData?.accessToken ?? loginData?.authToken;
+      const userTypeRaw =
+        loginData?.userType ??
+        loginData?.user?.userType ??
+        loginData?.user?.type ??
+        loginData?.type;
+      const userType =
+        typeof userTypeRaw === "number" ? String(userTypeRaw) : userTypeRaw;
+      const userId = loginData?.user?.id ?? loginData?.userId ?? loginData?.id;
+
+      if (token) {
+        document.cookie = `authToken=${encodeURIComponent(
+          token
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userType) {
+        document.cookie = `userType=${encodeURIComponent(
+          userType
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+      if (userId) {
+        document.cookie = `userId=${encodeURIComponent(
+          userId
+        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+
+      setConfirmFeedback(
+        "Email confirmado e login realizado! Redirecionando para o painel..."
+      );
+      setConfirmStatus("success");
+
+      if (userType === "1") {
+        router.push("/client");
+      } else if (userType === "2") {
+        router.push("/professional");
+      } else {
+        router.push("/");
+      }
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message || "Email confirmado, mas login falhou.";
+      setConfirmFeedback(msg);
+      setConfirmStatus("error");
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!confirmationEmail) {
+      setConfirmStatus("error");
+      setConfirmFeedback("Informe o email para reenviar o código.");
+      return;
+    }
+    try {
+      setResending(true);
+      setConfirmStatus("idle");
+      setConfirmFeedback("Enviando novo código...");
+      const res = await api.post("/Auth/resend-email-confirmation", {
+        email: confirmationEmail,
+      });
+      setConfirmationCode("");
+      resetCountdown();
+      setConfirmFeedback(
+        res?.data?.message ?? "Novo código enviado. Verifique seu email."
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        "Não foi possível reenviar o código. Tente novamente.";
+      setConfirmStatus("error");
+      setConfirmFeedback(msg);
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-6">
+    <>
+    <MainNavHeader withoutNavbar={true}/>
+    <main className="min-h-screen flex items-center justify-center px-4 py-6 pt-20">
       <div className="w-full max-w-4xl space-y-6">
         <div className="text-center mb-3 space-y-2">
           <p className="pill mx-auto">Siga as etapas do cadastro abaixo</p>
@@ -196,19 +333,153 @@ export default function CadastroUsuarioPage() {
         {completed ? (
           <div className="glass-liquid">
             <div className="glass-liquid-inner flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-center text-emerald-300">
+              <div
+                className={`w-16 h-16 rounded-full border flex items-center justify-center ${
+                  confirmStatus === "success"
+                    ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
+                    : confirmStatus === "error"
+                    ? "bg-red-500/10 border-red-400/40 text-red-200"
+                    : "border-white/15 text-(--muted-foreground)"
+                }`}
+              >
                 <FiCheckCircle className="text-3xl" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-2xl font-semibold">Cadastro concluído!</h2>
+                <h2 className="text-2xl font-semibold">
+                  Confirme seu email para concluir
+                </h2>
                 <p className="text-(--muted-foreground)">
-                  Seu perfil foi criado com sucesso. Faça login para continuar.
+                  Enviamos um código de 6 dígitos para seu email. Digite abaixo
+                  para ativar sua conta. Só depois você poderá fazer login.
                 </p>
               </div>
-              <div className="flex gap-3">
-                <Link href="/login" className="liquid-button">
-                  Ir para login
-                </Link>
+              <div className="w-full max-w-md space-y-3 text-left">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-(--muted-foreground)">
+                    Email
+                  </label>
+                  <div className="glass-liquid">
+                    <div className="glass-liquid-inner flex items-center gap-2">
+                      <input
+                        type="email"
+                        className="w-full bg-transparent border-none outline-none"
+                        value={confirmationEmail}
+                        onChange={(e) => setConfirmationEmail(e.target.value)}
+                        placeholder="voce@freelaverse.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-(--muted-foreground)">
+                    Código de 6 dígitos
+                  </label>
+                  <div className="flex gap-2 justify-center">
+                    {codeDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        className={`w-12 h-12 rounded-lg text-center text-lg font-semibold bg-white/5 border outline-none focus:border-(--brand) transition ${
+                          confirmStatus === "success"
+                            ? "border-emerald-400/60 text-emerald-300"
+                            : confirmStatus === "error"
+                            ? "border-red-400/60 text-red-200"
+                            : "border-white/10 text-white"
+                        }`}
+                        value={digit.trim()}
+                        onChange={(e) => {
+                          updateDigit(idx, e.target.value);
+                          if (e.target.value && idx < 5) {
+                            const next = document.getElementById(`code-${idx + 1}`) as HTMLInputElement | null;
+                            next?.focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !digit && idx > 0) {
+                            const prev = document.getElementById(`code-${idx - 1}`) as HTMLInputElement | null;
+                            prev?.focus();
+                          }
+                        }}
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          handlePasteCode(e.clipboardData.getData("text"));
+                        }}
+                        id={`code-${idx}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {confirmFeedback && (
+                  <div
+                    className={`text-sm ${
+                      confirmStatus === "success"
+                        ? "text-emerald-200"
+                        : confirmStatus === "error"
+                        ? "text-red-200"
+                        : "text-(--muted-foreground)"
+                    }`}
+                  >
+                    {confirmFeedback}
+                  </div>
+                )}
+                <div className="flex gap-3 flex-wrap items-center">
+                  <button
+                    type="button"
+                    className="liquid-button px-4"
+                    onClick={async () => {
+                      setConfirmFeedback(null);
+                      setConfirmStatus("idle");
+                      if (!confirmationEmail || confirmationCode.length !== 6) {
+                        setConfirmFeedback(
+                          "Informe o email e o código de 6 dígitos."
+                        );
+                        setConfirmStatus("error");
+                        return;
+                      }
+                      try {
+                        setConfirming(true);
+                        const res = await api.post("/Auth/confirm-email", {
+                          email: confirmationEmail,
+                          code: confirmationCode,
+                        });
+                        setConfirmFeedback(
+                          res?.data?.message ||
+                            "Email confirmado! Agora você pode fazer login."
+                        );
+                        setConfirmStatus("success");
+                        await loginAfterConfirm();
+                      } catch (err: any) {
+                        const msg =
+                          err?.response?.data?.message ||
+                          "Não foi possível confirmar o email.";
+                        setConfirmFeedback(msg);
+                        setConfirmStatus("error");
+                      } finally {
+                        setConfirming(false);
+                      }
+                    }}
+                    disabled={confirming}
+                  >
+                    {confirming ? "Confirmando..." : "Confirmar código"}
+                  </button>
+                  <button
+                    type="button"
+                    className="liquid-button liquid-button--ghost px-4"
+                    onClick={handleResendCode}
+                    disabled={resending || secondsLeft > 0}
+                  >
+                    {secondsLeft > 0
+                      ? `Reenviar em ${formatSeconds(secondsLeft)}`
+                      : resending
+                      ? "Enviando..."
+                      : "Reenviar código"}
+                  </button>
+                  <Link href="/login" className="liquid-button liquid-button--ghost">
+                    Ir para login
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -730,5 +1001,6 @@ export default function CadastroUsuarioPage() {
         )}
       </div>
     </main>
+    </>
   );
 }

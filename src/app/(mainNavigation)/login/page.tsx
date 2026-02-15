@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiCheckCircle } from "react-icons/fi";
 import { FaGoogle } from "react-icons/fa";
-import api from "../../../lib/api";
+import api from "@/src/lib/api";
+import MainNavHeader from "@/src/components/MainNavHeader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,8 +59,16 @@ export default function LoginPage() {
         router.push("/");
       }
     } catch (err: any) {
+      const status = err?.response?.status;
       const message = err?.response?.data?.message || "Não foi possível fazer login.";
-      setError(message);
+      if (status === 403 && message.toLowerCase().includes("confirme seu email")) {
+        setError("Confirme seu email para continuar. Vamos te redirecionar para inserir o código.");
+        setTimeout(() => {
+          router.push(`/confirmar-email?email=${encodeURIComponent(email)}`);
+        }, 500);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
